@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Python ≥ 3.12（先运行 `python --version` 确认；不足则从 python.org 安装）。
+- Python ≥ 3.11（开发机实测 3.11.9；语法与依赖均兼容，CI 上用 3.12 验证。原定 3.12 下限放宽，未用任何 3.12 独有特性）。
 - 不使用 LangChain 等 Agent 框架（设计文档明确要求，自研循环是面试信号）。
 - 模块间传递的数据一律是 Pydantic 模型，不传裸 dict。
 - pytest 全程离线：任何测试不得访问真实网络，HTTP 一律 `httpx.MockTransport`。
@@ -46,7 +46,7 @@ build-backend = "setuptools.build_meta"
 name = "dealscout"
 version = "0.1.0"
 description = "Personal price-watching agent: watches game and e-commerce prices, judges real discounts, notifies via Telegram"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.7",
     "httpx>=0.27",
@@ -65,7 +65,7 @@ include = ["dealscout*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py311"
 ```
 
 - [ ] **Step 2: 写 .gitignore**
@@ -80,6 +80,7 @@ dist/
 *.db
 .pytest_cache/
 .ruff_cache/
+.superpowers/
 ```
 
 - [ ] **Step 3: 写 .env.example**

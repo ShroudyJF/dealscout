@@ -33,7 +33,7 @@
 
 ## 3. 技术架构
 
-**技术栈**：Python 3.12、Playwright、Pydantic、SQLite、Claude API（以 Haiku 为主控制成本）、Telegram Bot API、Typer CLI。**不使用 LangChain 等重框架**——自行实现 Agent 循环，作为「懂原理」的面试信号。
+**技术栈**：Python 3.11+（开发机为 3.11.9，CI 用 3.12 验证）、Playwright、Pydantic、SQLite、Claude API（以 Haiku 为主控制成本）、Telegram Bot API、Typer CLI。**不使用 LangChain 等重框架**——自行实现 Agent 循环，作为「懂原理」的面试信号。
 
 ### 模块划分（单一职责、可独立测试）
 
