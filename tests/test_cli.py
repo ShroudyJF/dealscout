@@ -3,6 +3,9 @@ from typer.testing import CliRunner
 
 from dealscout import cli
 from dealscout.config import Settings
+from dealscout.models import PricePoint
+from dealscout.sources.base import SourceError
+from dealscout.store import Store
 
 runner = CliRunner()
 
@@ -16,6 +19,11 @@ class FakeItad:
 
     def fetch_prices(self, rule):
         return []
+
+
+class FailingFetchItad(FakeItad):
+    def fetch_prices(self, rule):
+        raise SourceError("boom")
 
 
 class FakeNotifier:
@@ -52,3 +60,43 @@ def test_run_reports_no_deal(fake_env):
     result = runner.invoke(cli.app, ["run"])
     assert result.exit_code == 0, result.output
     assert "no deal" in result.output
+
+
+def test_add_requires_a_condition(fake_env):
+    result = runner.invoke(cli.app, ["add", "hades"])
+    assert result.exit_code != 0
+    assert "ValidationError" not in result.output
+    assert "max-price" in result.output
+    assert "min-cut" in result.output
+
+
+def test_report_shows_history(fake_env):
+    result = runner.invoke(cli.app, ["add", "hades", "--max-price", "15"])
+    assert result.exit_code == 0, result.output
+
+    store = Store(fake_env.db_path)
+    store.record_prices(
+        1,
+        [
+            PricePoint(
+                shop="Steam",
+                price=9.99,
+                regular=19.99,
+                cut=50,
+                currency="USD",
+                url="https://example.com/hades",
+            )
+        ],
+    )
+
+    result = runner.invoke(cli.app, ["report", "1"])
+    assert result.exit_code == 0, result.output
+    assert "Steam" in result.output
+
+
+def test_run_exits_nonzero_on_watch_error(fake_env, monkeypatch):
+    monkeypatch.setattr(cli, "ItadClient", FailingFetchItad)
+    runner.invoke(cli.app, ["add", "hades", "--max-price", "15"])
+    result = runner.invoke(cli.app, ["run"])
+    assert result.exit_code == 1, result.output
+    assert "ERROR" in result.output
