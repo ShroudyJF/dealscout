@@ -3,8 +3,8 @@ import pytest
 from dealscout.config import SettingsError, load_settings
 
 
-def test_load_settings_from_env(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
+def test_load_settings_from_env(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
     monkeypatch.setenv("ITAD_API_KEY", "k1")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t1")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "c1")
@@ -14,8 +14,8 @@ def test_load_settings_from_env(monkeypatch, tmp_path):
     assert s.db_path == "custom.db"
 
 
-def test_missing_key_raises(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
+def test_missing_key_raises(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
     monkeypatch.delenv("ITAD_API_KEY", raising=False)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t1")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "c1")
