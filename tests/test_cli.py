@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from typer.testing import CliRunner
 
@@ -62,12 +64,18 @@ def test_run_reports_no_deal(fake_env):
     assert "no deal" in result.output
 
 
+def _strip_ansi(text):
+    # rich colors error output on CI terminals and may split words with style codes
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
 def test_add_requires_a_condition(fake_env):
     result = runner.invoke(cli.app, ["add", "hades"])
+    output = _strip_ansi(result.output)
     assert result.exit_code != 0
-    assert "ValidationError" not in result.output
-    assert "max-price" in result.output
-    assert "min-cut" in result.output
+    assert "ValidationError" not in output
+    assert "max-price" in output
+    assert "min-cut" in output
 
 
 def test_report_shows_history(fake_env):
