@@ -31,13 +31,17 @@ Required environment variables (see `.env.example`):
 | `ITAD_API_KEY` | API key from [isthereanydeal.com/apps](https://isthereanydeal.com/apps) |
 | `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_CHAT_ID` | Chat/user ID that receives notifications |
-| `DEALSCOUT_DB` | *(optional)* SQLite file path, defaults to `dealscout.db` |
+| `DEALSCOUT_DB` | *(optional)* SQLite file path, defaults to `dealscout.db`; use `data/dealscout.db` (the committed single source of truth) so local runs and the cloud workflow share the same history |
+| `DEALSCOUT_DISPLAY_CURRENCY` | *(optional)* currency to convert the deal price into, defaults to `MYR` |
+| `DEALSCOUT_TZ` | *(optional)* IANA timezone the `tick` gate uses, defaults to `Asia/Kuala_Lumpur` |
+| `DEALSCOUT_RUN_HOUR` | *(optional)* local hour (0-23) that `tick` fires at, defaults to `9` |
 
 ### Commands
 
 - `dealscout add TITLE [--max-price N] [--min-cut PCT] [--country CC]` — look up `TITLE` on IsThereAnyDeal and start watching it. Trigger when the best price drops to `--max-price` or the discount reaches `--min-cut`%. `--country` defaults to `MY`.
 - `dealscout list` — show all active watches and their trigger conditions.
 - `dealscout run` — run one monitoring pass over every watch: fetch current prices, judge each against its rule, and notify on Telegram for new deals (deduplicated so you're not pinged twice for the same deal).
+- `dealscout tick` — run once but only when it is `DEALSCOUT_RUN_HOUR` in `DEALSCOUT_TZ` (used by the hourly cloud workflow).
 - `dealscout report WATCH_ID [--limit N]` — print recent price history for a watch (defaults to the last 10 entries).
 
 ## Architecture
