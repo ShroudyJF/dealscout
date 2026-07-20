@@ -34,3 +34,13 @@ def test_notification_price_tracking(store):
     assert store.last_notified_price(w.id) is None
     store.record_notification(w.id, 12.49, "msg")
     assert store.last_notified_price(w.id) == 12.49
+
+
+def test_store_creates_missing_parent_dir(tmp_path):
+    nested = tmp_path / "data" / "sub" / "dealscout.db"
+    s = Store(nested)
+    try:
+        assert nested.exists()
+        assert s.list_watches() == []
+    finally:
+        s.close()
