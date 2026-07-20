@@ -21,3 +21,38 @@ def test_missing_key_raises(monkeypatch):
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "c1")
     with pytest.raises(SettingsError, match="ITAD_API_KEY"):
         load_settings()
+
+
+def test_locale_defaults(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
+    monkeypatch.setenv("ITAD_API_KEY", "k")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    for var in ("DEALSCOUT_DISPLAY_CURRENCY", "DEALSCOUT_TZ", "DEALSCOUT_RUN_HOUR"):
+        monkeypatch.delenv(var, raising=False)
+    s = load_settings()
+    assert s.display_currency == "MYR"
+    assert s.tz == "Asia/Kuala_Lumpur"
+    assert s.run_hour == 9
+
+
+def test_locale_overrides(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
+    monkeypatch.setenv("ITAD_API_KEY", "k")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    monkeypatch.setenv("DEALSCOUT_DISPLAY_CURRENCY", "SGD")
+    monkeypatch.setenv("DEALSCOUT_TZ", "America/New_York")
+    monkeypatch.setenv("DEALSCOUT_RUN_HOUR", "7")
+    s = load_settings()
+    assert (s.display_currency, s.tz, s.run_hour) == ("SGD", "America/New_York", 7)
+
+
+def test_invalid_run_hour_raises(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
+    monkeypatch.setenv("ITAD_API_KEY", "k")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    monkeypatch.setenv("DEALSCOUT_RUN_HOUR", "not-a-number")
+    with pytest.raises(SettingsError, match="DEALSCOUT_RUN_HOUR"):
+        load_settings()
