@@ -18,7 +18,7 @@ jobs:
           python-version: "3.12"
       - run: pip install -e .
       - name: Run tick
-        run: dealscout run
+        run: dealscout tick
         env:
           ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
