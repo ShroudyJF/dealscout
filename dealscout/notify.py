@@ -29,11 +29,14 @@ class TelegramNotifier:
             raise NotifyError(f"telegram send failed: HTTP {resp.status_code} {resp.text}")
 
 
-def format_deal(deal: Deal) -> str:
+def format_deal(deal: Deal, display: tuple[str, float] | None = None) -> str:
     b = deal.best
-    return (
-        f"🎯 DealScout: {deal.title}\n"
-        f"{b.shop}: {b.currency} {b.price:.2f} (regular {b.regular:.2f}, -{b.cut}%)\n"
-        f"why: {deal.reason}\n"
-        f"{b.url}"
-    )
+    lines = [
+        f"🎯 DealScout: {deal.title}",
+        f"{b.shop}: {b.currency} {b.price:.2f} (regular {b.regular:.2f}, -{b.cut}%)",
+    ]
+    if display is not None:
+        lines.append(f"≈ {display[0]} {display[1]:.2f}")
+    lines.append(f"why: {deal.reason}")
+    lines.append(f"{b.url}")
+    return "\n".join(lines)

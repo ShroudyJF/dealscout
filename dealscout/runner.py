@@ -17,7 +17,24 @@ class RunResult(BaseModel):
     error: str | None = None
 
 
-def run_once(store: Store, source: SourceAdapter, notifier) -> list[RunResult]:
+def _display_price(fx, display_currency, deal):
+    # FX is best-effort: never let conversion break a real deal notification.
+    if fx is None or display_currency is None:
+        return None
+    try:
+        amount = fx.convert(deal.best.price, deal.best.currency, display_currency)
+    except Exception:
+        return None
+    return (display_currency, amount)
+
+
+def run_once(
+    store: Store,
+    source: SourceAdapter,
+    notifier,
+    fx=None,
+    display_currency: str | None = None,
+) -> list[RunResult]:
     results: list[RunResult] = []
     for rule in store.list_watches():
         assert rule.id is not None
@@ -28,7 +45,8 @@ def run_once(store: Store, source: SourceAdapter, notifier) -> list[RunResult]:
             deal = judge.evaluate(rule, points)
             result.deal = deal
             if deal is not None and store.last_notified_price(rule.id) != deal.best.price:
-                message = format_deal(deal)
+                display = _display_price(fx, display_currency, deal)
+                message = format_deal(deal, display)
                 notifier.send(message)
                 store.record_notification(rule.id, deal.best.price, message)
                 result.notified = True

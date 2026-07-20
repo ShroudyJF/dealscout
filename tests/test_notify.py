@@ -35,3 +35,15 @@ def test_format_deal_mentions_price_and_reason():
     assert "Hades" in text
     assert "12.49" in text
     assert "cut 50% >= 40%" in text
+
+
+def test_format_deal_without_display_has_no_convert_line():
+    best = PricePoint(shop="Steam", price=12.49, regular=24.99, cut=50, currency="USD", url="https://x")
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"))
+    assert "≈" not in text
+
+
+def test_format_deal_with_display_adds_convert_line():
+    best = PricePoint(shop="Steam", price=12.49, regular=24.99, cut=50, currency="USD", url="https://x")
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), display=("MYR", 58.7))
+    assert "≈ MYR 58.70" in text

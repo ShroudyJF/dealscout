@@ -60,3 +60,33 @@ def test_source_error_isolated_per_watch(store):
     results = run_once(store, FakeSource({"bad": SourceError("boom"), "g1": [_point()]}), notifier)
     assert results[0].error is not None
     assert results[1].notified is True
+
+
+class FakeFx:
+    def __init__(self, rate=4.7, fail=False):
+        self.rate = rate
+        self.fail = fail
+
+    def convert(self, amount, from_ccy, to_ccy):
+        if self.fail:
+            from dealscout.fx import FxError
+
+            raise FxError("boom")
+        return amount * self.rate
+
+
+def test_run_once_adds_converted_line(store):
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    run_once(store, FakeSource({"g1": [_point()]}), notifier, fx=FakeFx(), display_currency="MYR")
+    assert "≈ MYR" in notifier.sent[0]
+
+
+def test_run_once_fx_failure_still_notifies(store):
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    results = run_once(
+        store, FakeSource({"g1": [_point()]}), notifier, fx=FakeFx(fail=True), display_currency="MYR"
+    )
+    assert results[0].notified is True
+    assert "≈" not in notifier.sent[0]
