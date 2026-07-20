@@ -18,7 +18,7 @@ def test_convert_same_currency_short_circuits():
 
 def test_convert_applies_rate():
     def handler(request):
-        assert request.url.path == "/latest"
+        assert request.url.path == "/v1/latest"
         assert request.url.params["from"] == "USD"
         assert request.url.params["to"] == "MYR"
         return httpx.Response(200, json={"amount": 1.0, "base": "USD", "rates": {"MYR": 4.7}})
@@ -50,3 +50,10 @@ def test_convert_missing_rate_raises():
     fx = FxConverter(client=make_client(lambda r: httpx.Response(200, json={"rates": {}})))
     with pytest.raises(FxError):
         fx.convert(10.0, "USD", "MYR")
+
+
+def test_default_client_follows_redirects():
+    # frankfurter.app 301-redirects to frankfurter.dev; the default client must
+    # follow redirects or every real conversion fails with HTTP 301. Guards that bug.
+    fx = FxConverter()
+    assert fx._client.follow_redirects is True
