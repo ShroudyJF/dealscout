@@ -1,11 +1,15 @@
 """DealScout CLI: add / list / run / report."""
 
+from datetime import datetime, timezone
+
 import typer
 
 from dealscout.config import SettingsError, load_settings
+from dealscout.fx import FxConverter
 from dealscout.models import WatchRule
 from dealscout.notify import TelegramNotifier
 from dealscout.runner import run_once
+from dealscout.schedule import should_run_now
 from dealscout.sources.base import SourceError
 from dealscout.sources.itad import ItadClient
 from dealscout.store import Store
@@ -65,18 +69,13 @@ def list_() -> None:
         typer.echo(f"#{rule.id} {rule.title} [{' or '.join(conds)}] country={rule.country}")
 
 
-@app.command()
-def run() -> None:
-    """Run one monitoring pass over all watches."""
-    try:
-        settings = load_settings()
-        store = Store(settings.db_path)
-        source = ItadClient(settings.itad_api_key)
-        notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
-        results = run_once(store, source, notifier)
-    except SettingsError as exc:
-        typer.echo(f"error: {exc}", err=True)
-        raise typer.Exit(1) from exc
+def _execute_run(settings) -> bool:
+    """Build wiring, run one pass, print statuses; return True if any watch errored."""
+    store = Store(settings.db_path)
+    source = ItadClient(settings.itad_api_key)
+    notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+    fx = FxConverter()
+    results = run_once(store, source, notifier, fx=fx, display_currency=settings.display_currency)
     has_error = False
     for r in results:
         if r.error:
@@ -89,6 +88,35 @@ def run() -> None:
         else:
             status = "no deal"
         typer.echo(f"#{r.watch_id} {r.title}: {status}")
+    return has_error
+
+
+@app.command()
+def run() -> None:
+    """Run one monitoring pass over all watches."""
+    try:
+        settings = load_settings()
+        has_error = _execute_run(settings)
+    except SettingsError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    if has_error:
+        raise typer.Exit(1)
+
+
+@app.command()
+def tick() -> None:
+    """Cron heartbeat: run only when it is the configured hour in the configured timezone."""
+    try:
+        settings = load_settings()
+        now_utc = datetime.now(timezone.utc)
+        if not should_run_now(settings.tz, settings.run_hour, now_utc):
+            typer.echo(f"skipped: not {settings.run_hour:02d}:00 in {settings.tz}")
+            return
+        has_error = _execute_run(settings)
+    except SettingsError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
     if has_error:
         raise typer.Exit(1)
 
