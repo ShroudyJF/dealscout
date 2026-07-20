@@ -5,6 +5,7 @@ __pycache__/
 dist/
 .env
 *.db
+!data/dealscout.db
 .pytest_cache/
 .ruff_cache/
 .superpowers/

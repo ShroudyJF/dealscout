@@ -77,8 +77,28 @@ Linux/macOS cron:
 Both invoke `dealscout run`, which is idempotent and safe to run unattended:
 each pass only notifies for deals that haven't already been sent.
 
+## Cloud scheduling (GitHub Actions)
+
+`dealscout run` fires whenever it runs; `dealscout tick` only runs at your
+local hour. The `watch.yml` workflow triggers hourly (cron is UTC-only) and
+`tick` gates on your timezone, so real work happens once a day at your local
+`DEALSCOUT_RUN_HOUR`, DST-safe via `zoneinfo`.
+
+Setup:
+1. Repo **Settings → Secrets and variables → Actions**: add `ITAD_API_KEY`,
+   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+2. Add a watch locally with `DEALSCOUT_DB=data/dealscout.db`, then
+   `git add data/dealscout.db && git commit && git push`.
+3. Trigger the workflow once via **Actions → watch → Run workflow** to verify.
+4. Delete the local Windows Task Scheduler job to avoid double notifications:
+   `schtasks /delete /tn DealScout /f`.
+
+State (watches + price history) lives in the committed `data/dealscout.db`;
+the workflow commits it back after each real run. Pull before editing locally.
+
 ## Roadmap
 
 - [x] M1: ITAD source -> SQLite -> rule trigger -> Telegram
+- [x] M1.5: FX line, timezone-gated cloud cron
 - [ ] M2: natural-language watch rules; Shopee/Lazada via Playwright + LLM extraction; fake-discount judge
 - [ ] M3: eval harness in CI, cost tracking, spin off `llm-page-extract`

@@ -1,0 +1,40 @@
+name: watch
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+concurrency:
+  group: watch
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Run tick
+        run: dealscout tick
+        env:
+          ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DEALSCOUT_DB: data/dealscout.db
+          DEALSCOUT_TZ: Asia/Kuala_Lumpur
+          DEALSCOUT_RUN_HOUR: "9"
+          DEALSCOUT_DISPLAY_CURRENCY: MYR
+      - name: Commit updated db if changed
+        run: |
+          git add data/dealscout.db 2>/dev/null || true
+          if git diff --cached --quiet -- data/dealscout.db; then
+            echo "no db changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: update price history [skip ci]"
+            git push
+          fi
