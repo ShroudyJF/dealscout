@@ -1,5 +1,7 @@
 """Natural-language watch setup. Provider-agnostic: parse() is a Protocol; Gemini implements it."""
 
+from typing import Protocol
+
 from pydantic import BaseModel
 
 from dealscout.models import WatchRule
@@ -61,3 +63,53 @@ def resolve_watch(req: WatchRequest, source, fx, country: str = "MY") -> WatchRu
         min_cut=req.min_cut,
         country=country,
     )
+
+
+class WatchParser(Protocol):
+    def parse(self, text: str) -> WatchRequest:
+        """Parse a sentence into a WatchRequest. Raises ParseError on failure."""
+        ...
+
+
+class GeminiWatchParser:
+    """WatchParser backed by Gemini structured output (google-genai SDK).
+
+    Same call form as GeminiVerdictLLM (M2a): passing a bare Pydantic model
+    class as response_schema is a supported, tested google-genai usage.
+    """
+
+    def __init__(self, api_key: str, model: str, client=None) -> None:
+        self._model = model
+        if client is not None:
+            self._client = client
+        else:
+            from google import genai  # lazy import so offline tests need no SDK network
+
+            self._client = genai.Client(
+                api_key=api_key,
+                # google-genai's default httpx timeout is unbounded; cap it (ms).
+                http_options=genai.types.HttpOptions(timeout=30_000),
+            )
+
+    def parse(self, text: str) -> WatchRequest:
+        prompt = build_prompt(text)
+        try:
+            from google.genai import types
+
+            resp = self._client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=WatchRequest,
+                ),
+            )
+        except Exception as exc:  # any SDK/network error -> domain error
+            raise ParseError(f"gemini parse failed: {exc}") from exc
+        out = getattr(resp, "text", None)
+        if not out:
+            raise ParseError("gemini parse returned empty response")
+        try:
+            return WatchRequest.model_validate_json(out)
+        except Exception as exc:
+            raise ParseError(f"gemini parse not valid: {exc}") from exc

@@ -129,3 +129,78 @@ def test_resolve_watch_propagates_game_not_found():
         resolve_watch(
             WatchRequest(title="zzz", max_price=30, currency="USD"), MissingSource(), RecordingFx()
         )
+
+
+class _FakeResp:
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeModels:
+    def __init__(self, text=None, exc=None):
+        self._text = text
+        self._exc = exc
+        self.calls = []
+
+    def generate_content(self, **kwargs):
+        self.calls.append(kwargs)
+        if self._exc is not None:
+            raise self._exc
+        return _FakeResp(self._text)
+
+
+class _FakeGenaiClient:
+    def __init__(self, text=None, exc=None):
+        self.models = _FakeModels(text=text, exc=exc)
+
+
+def test_gemini_parser_parses_structured_json():
+    from dealscout.intake import GeminiWatchParser
+
+    fake = _FakeGenaiClient(text='{"title": "Elden Ring", "max_price": 120, "currency": "MYR", "min_cut": null}')
+    parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
+    req = parser.parse("盯艾尔登法环 降到RM120")
+    assert req.title == "Elden Ring"
+    assert req.max_price == 120
+    assert req.currency == "MYR"
+    assert req.min_cut is None
+    assert fake.models.calls                       # 确实调用了模型
+
+
+def test_gemini_parser_sends_json_schema_config():
+    from dealscout.intake import GeminiWatchParser, WatchRequest
+
+    fake = _FakeGenaiClient(text='{"title": "Hades"}')
+    parser = GeminiWatchParser(api_key="k", model="gemini-2.5-flash", client=fake)
+    parser.parse("盯 Hades")
+    kwargs = fake.models.calls[0]
+    assert kwargs["model"] == "gemini-2.5-flash"
+    assert kwargs["config"].response_mime_type == "application/json"
+    assert kwargs["config"].response_schema is WatchRequest
+
+
+def test_gemini_parser_wraps_errors():
+    from dealscout.intake import GeminiWatchParser
+
+    fake = _FakeGenaiClient(exc=RuntimeError("api down"))
+    parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(ParseError):
+        parser.parse("x")
+
+
+def test_gemini_parser_empty_response_raises():
+    from dealscout.intake import GeminiWatchParser
+
+    fake = _FakeGenaiClient(text="")
+    parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(ParseError, match="empty"):
+        parser.parse("x")
+
+
+def test_gemini_parser_bad_json_raises():
+    from dealscout.intake import GeminiWatchParser
+
+    fake = _FakeGenaiClient(text="not json at all")
+    parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(ParseError):
+        parser.parse("x")
