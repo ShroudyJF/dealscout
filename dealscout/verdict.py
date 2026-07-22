@@ -66,7 +66,13 @@ class GeminiVerdictLLM:
         else:
             from google import genai  # imported lazily so offline tests need no SDK network
 
-            self._client = genai.Client(api_key=api_key)
+            self._client = genai.Client(
+                api_key=api_key,
+                # google-genai's default httpx timeout is unbounded, which would let a
+                # stalled Gemini connection hang judge() past its except-Exception guard
+                # and block the whole monitoring pass. HttpOptions.timeout is milliseconds.
+                http_options=genai.types.HttpOptions(timeout=30_000),
+            )
 
     def judge(self, overview: PriceOverview, rule: WatchRule) -> DealVerdict:
         prompt = build_prompt(overview, rule)

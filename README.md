@@ -36,6 +36,7 @@ Required environment variables (see `.env.example`):
 | `DEALSCOUT_DISPLAY_CURRENCY` | *(optional)* currency to convert the deal price into, defaults to `MYR` |
 | `DEALSCOUT_TZ` | *(optional)* IANA timezone the `tick` gate uses, defaults to `Asia/Kuala_Lumpur` |
 | `DEALSCOUT_RUN_HOUR` | *(optional)* local hour (0-23) that `tick` fires at, defaults to `9` |
+| `DEALSCOUT_LLM_MODEL` | *(optional)* LLM model used for deal verdicts, defaults to `gemini-2.5-flash` |
 
 ### Commands
 

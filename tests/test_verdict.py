@@ -81,3 +81,21 @@ def test_gemini_judge_wraps_errors():
     llm = GeminiVerdictLLM(api_key="k", model="gemini-x", client=fake)
     with pytest.raises(VerdictError):
         llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30))
+
+
+def test_gemini_judge_empty_response_raises():
+    from dealscout.verdict import GeminiVerdictLLM, VerdictError
+
+    fake = _FakeGenaiClient(text="")
+    llm = GeminiVerdictLLM(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(VerdictError):
+        llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30))
+
+
+def test_gemini_judge_bad_json_raises():
+    from dealscout.verdict import GeminiVerdictLLM, VerdictError
+
+    fake = _FakeGenaiClient(text="not json at all")
+    llm = GeminiVerdictLLM(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(VerdictError):
+        llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30))
