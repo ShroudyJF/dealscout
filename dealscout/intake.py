@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dealscout.models import WatchRule
 
@@ -12,10 +12,10 @@ class ParseError(RuntimeError):
 
 
 class WatchRequest(BaseModel):
-    title: str | None = None        # specific game name (English, for ITAD lookup); None if not identifiable
-    max_price: float | None = None  # absolute price threshold, in `currency`
-    currency: str | None = None     # ISO code of max_price, e.g. "USD"/"MYR"; None if no price
-    min_cut: int | None = None      # discount-percent threshold
+    title: str | None = None                             # game name (English, for ITAD lookup); None if unidentifiable
+    max_price: float | None = Field(default=None, gt=0)  # price threshold in `currency`; a price is positive
+    currency: str | None = None                          # ISO code of max_price, e.g. "USD"/"MYR"; None if no price
+    min_cut: int | None = Field(default=None, ge=1, le=100)  # discount-percent threshold, 1-100
 
 
 def build_prompt(text: str) -> str:

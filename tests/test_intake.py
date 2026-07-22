@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from dealscout.intake import ParseError, WatchRequest, build_prompt, resolve_watch
 from dealscout.sources.base import GameNotFoundError
@@ -17,6 +18,16 @@ def test_watch_request_accepts_partial():
     assert req.title == "Elden Ring"
     assert req.min_cut == 20
     assert req.max_price is None
+
+
+def test_watch_request_rejects_out_of_range_min_cut():
+    with pytest.raises(ValidationError):
+        WatchRequest(title="Elden Ring", min_cut=130)   # >100% discount is impossible
+
+
+def test_watch_request_rejects_nonpositive_max_price():
+    with pytest.raises(ValidationError):
+        WatchRequest(title="Elden Ring", max_price=0)    # a price threshold must be > 0
 
 
 def test_parse_error_is_runtime_error():
@@ -214,6 +225,16 @@ def test_gemini_parser_bad_json_raises():
     from dealscout.intake import GeminiWatchParser
 
     fake = _FakeGenaiClient(text="not json at all")
+    parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
+    with pytest.raises(ParseError):
+        parser.parse("x")
+
+
+def test_gemini_parser_out_of_range_raises_parse_error():
+    # an LLM misparse (min_cut=130) fails WatchRequest bounds -> surfaces as ParseError, not a bad watch
+    from dealscout.intake import GeminiWatchParser
+
+    fake = _FakeGenaiClient(text='{"title": "Elden Ring", "min_cut": 130}')
     parser = GeminiWatchParser(api_key="k", model="gemini-x", client=fake)
     with pytest.raises(ParseError):
         parser.parse("x")
