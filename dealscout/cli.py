@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 import typer
 
 from dealscout.config import SettingsError, load_settings
-from dealscout.fx import FxConverter
+from dealscout.fx import FxConverter, FxError
+from dealscout.intake import GeminiWatchParser, ParseError, resolve_watch
 from dealscout.models import WatchRule
 from dealscout.notify import TelegramNotifier
 from dealscout.runner import run_once
@@ -49,6 +50,37 @@ def add(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"watching #{rule.id}: {canonical} ({game_id})")
+
+
+def _fmt_conds(req, rule) -> str:
+    conds = []
+    if rule.max_price is not None:
+        src_ccy = (req.currency or "MYR").upper()
+        if src_ccy == "USD":
+            conds.append(f"price<=${rule.max_price}")
+        else:
+            conds.append(f"price<=${rule.max_price} (≈{src_ccy}{req.max_price:g})")
+    if rule.min_cut is not None:
+        conds.append(f"cut>={rule.min_cut}%")
+    return " or ".join(conds)
+
+
+@app.command()
+def watch(sentence: str) -> None:
+    """Parse a natural-language request and start watching a game."""
+    try:
+        settings = load_settings()
+        parser = GeminiWatchParser(settings.gemini_api_key, settings.llm_model)
+        req = parser.parse(sentence)
+        source = ItadClient(settings.itad_api_key)
+        fx = FxConverter()
+        rule = resolve_watch(req, source, fx)
+        store = Store(settings.db_path)
+        rule = store.add_watch(rule)
+    except (SettingsError, ParseError, SourceError, FxError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"watching #{rule.id}: {rule.title} [{_fmt_conds(req, rule)}] country={rule.country}")
 
 
 @app.command("list")

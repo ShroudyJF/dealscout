@@ -41,6 +41,7 @@ Required environment variables (see `.env.example`):
 ### Commands
 
 - `dealscout add TITLE [--max-price N] [--min-cut PCT] [--country CC]` — look up `TITLE` on IsThereAnyDeal and start watching it. Trigger when the best price drops to `--max-price` or the discount reaches `--min-cut`%. `--country` defaults to `MY`.
+- `dealscout watch "<一句话>"` — describe a game and trigger condition in natural language (中文/English) and DealScout parses it into a watch via the LLM (e.g. `dealscout watch "盯艾尔登法环，降到RM120叫我"`). Non-USD amounts like `RM120` are converted to the USD threshold; the confirmation line echoes both so you can verify the parse.
 - `dealscout list` — show all active watches and their trigger conditions.
 - `dealscout run` — run one monitoring pass over every watch: fetch current prices, judge each against its rule, and notify on Telegram for new deals (deduplicated so you're not pinged twice for the same deal).
 - `dealscout tick` — run once but only when it is `DEALSCOUT_RUN_HOUR` in `DEALSCOUT_TZ` (used by the hourly cloud workflow).

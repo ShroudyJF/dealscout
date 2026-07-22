@@ -17,7 +17,7 @@ class FakeItad:
         pass
 
     def lookup_game(self, title):
-        return "g-123", "Hades"
+        return "g-123", title.title()
 
     def fetch_prices(self, rule):
         return []
@@ -54,6 +54,16 @@ class FakeVerdictLLM:
         return DealVerdict(rating="good", reason="ok")
 
 
+class FakeWatchParser:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def parse(self, text):
+        from dealscout.intake import WatchRequest
+
+        return WatchRequest(title="Elden Ring", max_price=120, currency="MYR", min_cut=None)
+
+
 @pytest.fixture()
 def fake_env(tmp_path, monkeypatch):
     settings = Settings(
@@ -68,6 +78,7 @@ def fake_env(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "TelegramNotifier", FakeNotifier)
     monkeypatch.setattr(cli, "FxConverter", FakeFx)
     monkeypatch.setattr(cli, "GeminiVerdictLLM", FakeVerdictLLM)
+    monkeypatch.setattr(cli, "GeminiWatchParser", FakeWatchParser)
     return settings
 
 
@@ -161,3 +172,34 @@ def test_run_still_works_with_llm_wired(fake_env):
     result = runner.invoke(cli.app, ["run"])
     assert result.exit_code == 0, result.output
     assert "no deal" in result.output
+
+
+def test_watch_creates_and_confirms(fake_env):
+    result = runner.invoke(cli.app, ["watch", "盯艾尔登法环 降到RM120"])
+    assert result.exit_code == 0, result.output
+    output = _strip_ansi(result.output)
+    assert "Elden Ring" in output
+    assert "price<=$120" in output      # FakeFx.convert returns amount unchanged (120)
+    assert "MYR120" in output           # confirm echoes original currency+amount
+
+
+def test_watch_persists_watch(fake_env):
+    runner.invoke(cli.app, ["watch", "盯艾尔登法环 降到RM120"])
+    result = runner.invoke(cli.app, ["list"])
+    assert "Elden Ring" in result.output
+
+
+def test_watch_errors_when_no_game(fake_env, monkeypatch):
+    class NoGameParser:
+        def __init__(self, *a, **k):
+            pass
+
+        def parse(self, text):
+            from dealscout.intake import WatchRequest
+
+            return WatchRequest(title=None, max_price=30, currency="USD")
+
+    monkeypatch.setattr(cli, "GeminiWatchParser", NoGameParser)
+    result = runner.invoke(cli.app, ["watch", "找个恐怖游戏"])
+    assert result.exit_code == 1
+    assert "游戏" in _strip_ansi(result.output)
