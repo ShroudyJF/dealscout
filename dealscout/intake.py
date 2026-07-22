@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel
 
+from dealscout.models import WatchRule
+
 
 class ParseError(RuntimeError):
     pass
@@ -26,4 +28,36 @@ def build_prompt(text: str) -> str:
         "- currency：max_price 的币种 ISO 码（如 USD、MYR）；"
         "用户没明说币种时默认 MYR；无价格则 null。\n"
         "- min_cut：折扣百分比阈值的整数（\"打七折\"=30、\"降三成\"=30）；无则 null。"
+    )
+
+
+def resolve_watch(req: WatchRequest, source, fx, country: str = "MY") -> WatchRule:
+    """Turn a parsed WatchRequest into a storable WatchRule.
+
+    source: object with lookup_game(title) -> (game_id, canonical)
+    fx:     object with convert(amount, from_ccy, to_ccy) -> float
+    Raises ParseError (no game / no condition), GameNotFoundError/SourceError
+    (lookup), FxError (conversion). FX is load-bearing here — failures propagate.
+    """
+    if not req.title or not req.title.strip():
+        raise ParseError("没听出具体游戏名，请说清是哪个游戏")
+    if req.max_price is None and req.min_cut is None:
+        raise ParseError("没听出价格或折扣条件")
+
+    game_id, canonical = source.lookup_game(req.title)
+
+    max_price_usd = None
+    if req.max_price is not None:
+        ccy = (req.currency or "MYR").upper()   # default MYR matches build_prompt
+        if ccy == "USD":
+            max_price_usd = req.max_price
+        else:
+            max_price_usd = round(fx.convert(req.max_price, ccy, "USD"), 2)
+
+    return WatchRule(
+        title=canonical,
+        game_id=game_id,
+        max_price=max_price_usd,
+        min_cut=req.min_cut,
+        country=country,
     )
