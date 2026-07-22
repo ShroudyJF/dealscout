@@ -68,6 +68,9 @@ def _fmt_conds(req, rule) -> str:
 @app.command()
 def watch(sentence: str) -> None:
     """Parse a natural-language request and start watching a game."""
+    if not sentence.strip():
+        typer.echo("error: 请描述想盯的游戏和条件（例：盯艾尔登法环，降到RM120）", err=True)
+        raise typer.Exit(1)
     try:
         settings = load_settings()
         parser = GeminiWatchParser(settings.gemini_api_key, settings.llm_model)

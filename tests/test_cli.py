@@ -219,3 +219,17 @@ def test_watch_exits_when_fx_fails(fake_env, monkeypatch):
     result = runner.invoke(cli.app, ["watch", "盯艾尔登法环 降到RM120"])
     assert result.exit_code == 1
     assert "fx" in _strip_ansi(result.output).lower()
+
+
+def test_watch_blank_input_fails_fast(fake_env, monkeypatch):
+    class BoomParser:
+        def __init__(self, *a, **k):
+            pass
+
+        def parse(self, text):
+            raise AssertionError("parser must not be called for blank input")
+
+    monkeypatch.setattr(cli, "GeminiWatchParser", BoomParser)
+    result = runner.invoke(cli.app, ["watch", "   "])
+    assert result.exit_code == 1
+    assert "游戏" in _strip_ansi(result.output)   # friendly usage message, not an LLM call
