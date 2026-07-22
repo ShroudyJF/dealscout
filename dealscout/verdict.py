@@ -46,3 +46,47 @@ def build_prompt(overview: PriceOverview, rule: WatchRule) -> str:
         "rating 取值：buy_now(现在就买)、good(不错可入)、wait(建议再等)、skip(别买)。"
         "若建议再等，wait_target 给一个值得设提醒的目标价（否则留空）。"
     )
+
+
+class GeminiVerdictLLM:
+    """VerdictLLM backed by Gemini structured output (google-genai SDK).
+
+    Confirmed against the installed google-genai==2.13.0 SDK's own test suite
+    (site-packages/google/genai/tests/models/test_generate_content.py): passing
+    a bare Pydantic model class as ``response_schema`` (e.g.
+    ``response_schema=CountryInfo``) is a directly tested, supported usage.
+    ``response_json_schema`` also exists as an alternative for schemas that
+    ``response_schema`` can't process, but is not needed here.
+    """
+
+    def __init__(self, api_key: str, model: str, client=None) -> None:
+        self._model = model
+        if client is not None:
+            self._client = client
+        else:
+            from google import genai  # imported lazily so offline tests need no SDK network
+
+            self._client = genai.Client(api_key=api_key)
+
+    def judge(self, overview: PriceOverview, rule: WatchRule) -> DealVerdict:
+        prompt = build_prompt(overview, rule)
+        try:
+            from google.genai import types
+
+            resp = self._client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=DealVerdict,
+                ),
+            )
+        except Exception as exc:  # any SDK/network error -> domain error, caller degrades gracefully
+            raise VerdictError(f"gemini judge failed: {exc}") from exc
+        text = getattr(resp, "text", None)
+        if not text:
+            raise VerdictError("gemini judge returned empty response")
+        try:
+            return DealVerdict.model_validate_json(text)
+        except Exception as exc:
+            raise VerdictError(f"gemini verdict not valid: {exc}") from exc
