@@ -18,12 +18,15 @@ class Settings(BaseModel):
     display_currency: str = "MYR"
     tz: str = "Asia/Kuala_Lumpur"
     run_hour: int = 9
+    gemini_api_key: str = ""
+    llm_model: str = "gemini-2.5-flash"
 
 
 _REQUIRED = {
     "itad_api_key": "ITAD_API_KEY",
     "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
     "telegram_chat_id": "TELEGRAM_CHAT_ID",
+    "gemini_api_key": "GEMINI_API_KEY",
 }
 
 
@@ -48,4 +51,5 @@ def load_settings() -> Settings:
     if not 0 <= run_hour <= 23:
         raise SettingsError(f"DEALSCOUT_RUN_HOUR must be 0-23, got {run_hour}")
     values["run_hour"] = run_hour
+    values["llm_model"] = os.environ.get("DEALSCOUT_LLM_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
     return Settings(**values)
