@@ -25,6 +25,7 @@ class PricePoint(BaseModel):
     cut: int
     currency: str
     url: str
+    seen_at: str | None = None
 
 
 class Deal(BaseModel):
@@ -32,3 +33,8 @@ class Deal(BaseModel):
     title: str
     best: PricePoint
     reason: str
+
+
+class PriceOverview(BaseModel):
+    current: PricePoint
+    historical_low: PricePoint | None = None
