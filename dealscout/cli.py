@@ -13,6 +13,7 @@ from dealscout.schedule import should_run_now
 from dealscout.sources.base import SourceError
 from dealscout.sources.itad import ItadClient
 from dealscout.store import Store
+from dealscout.verdict import GeminiVerdictLLM
 
 app = typer.Typer(
     help="DealScout - personal price-watching agent",
@@ -75,7 +76,10 @@ def _execute_run(settings) -> bool:
     source = ItadClient(settings.itad_api_key)
     notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
     fx = FxConverter()
-    results = run_once(store, source, notifier, fx=fx, display_currency=settings.display_currency)
+    llm = GeminiVerdictLLM(settings.gemini_api_key, settings.llm_model)
+    results = run_once(
+        store, source, notifier, fx=fx, display_currency=settings.display_currency, llm=llm
+    )
     has_error = False
     for r in results:
         if r.error:

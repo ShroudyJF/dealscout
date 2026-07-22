@@ -31,6 +31,7 @@ Required environment variables (see `.env.example`):
 | `ITAD_API_KEY` | API key from [isthereanydeal.com/apps](https://isthereanydeal.com/apps) |
 | `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_CHAT_ID` | Chat/user ID that receives notifications |
+| `GEMINI_API_KEY` | Free API key from [aistudio.google.com](https://aistudio.google.com) used for LLM good-deal judgment |
 | `DEALSCOUT_DB` | *(optional)* SQLite file path, defaults to `dealscout.db`; use `data/dealscout.db` (the committed single source of truth) so local runs and the cloud workflow share the same history |
 | `DEALSCOUT_DISPLAY_CURRENCY` | *(optional)* currency to convert the deal price into, defaults to `MYR` |
 | `DEALSCOUT_TZ` | *(optional)* IANA timezone the `tick` gate uses, defaults to `Asia/Kuala_Lumpur` |
@@ -90,7 +91,7 @@ local hour. The `watch.yml` workflow triggers hourly (cron is UTC-only) and
 
 Setup:
 1. Repo **Settings → Secrets and variables → Actions**: add `ITAD_API_KEY`,
-   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`.
 2. Add a watch locally with `DEALSCOUT_DB=data/dealscout.db`, then
    `git add data/dealscout.db && git commit && git push`.
 3. Trigger the workflow once via **Actions → watch → Run workflow** to verify.

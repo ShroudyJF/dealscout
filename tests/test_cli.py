@@ -44,6 +44,16 @@ class FakeFx:
         return amount
 
 
+class FakeVerdictLLM:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def judge(self, overview, rule):
+        from dealscout.verdict import DealVerdict
+
+        return DealVerdict(rating="good", reason="ok")
+
+
 @pytest.fixture()
 def fake_env(tmp_path, monkeypatch):
     settings = Settings(
@@ -51,11 +61,13 @@ def fake_env(tmp_path, monkeypatch):
         telegram_bot_token="t",
         telegram_chat_id="c",
         db_path=str(tmp_path / "cli.db"),
+        gemini_api_key="g",
     )
     monkeypatch.setattr(cli, "load_settings", lambda: settings)
     monkeypatch.setattr(cli, "ItadClient", FakeItad)
     monkeypatch.setattr(cli, "TelegramNotifier", FakeNotifier)
     monkeypatch.setattr(cli, "FxConverter", FakeFx)
+    monkeypatch.setattr(cli, "GeminiVerdictLLM", FakeVerdictLLM)
     return settings
 
 
@@ -142,3 +154,10 @@ def test_tick_runs_on_hour(fake_env, monkeypatch):
     result = runner.invoke(cli.app, ["tick"])
     assert result.exit_code == 0, result.output
     assert "Hades" in result.output
+
+
+def test_run_still_works_with_llm_wired(fake_env):
+    runner.invoke(cli.app, ["add", "hades", "--max-price", "15"])
+    result = runner.invoke(cli.app, ["run"])
+    assert result.exit_code == 0, result.output
+    assert "no deal" in result.output

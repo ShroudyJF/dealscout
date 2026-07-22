@@ -23,6 +23,7 @@ jobs:
           ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DEALSCOUT_DB: data/dealscout.db
           DEALSCOUT_TZ: Asia/Kuala_Lumpur
           DEALSCOUT_RUN_HOUR: "9"
