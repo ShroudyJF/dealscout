@@ -114,13 +114,13 @@ def watch(sentence: str) -> None:
     typer.echo(f"watching #{rule.id}: {rule.title} [{_fmt_conds(req, rule)}] country={rule.country}")
 ```
 
-- `_fmt_conds(req, rule)`：拼确认串，**同时显示换算后的 USD 阈值与原始输入币种**，让用户一眼核对 LLM 有没有听错。例：`price<=$28.54 (≈RM120) or cut>=20%`。当输入本就是 USD 或无 max_price 时，省掉 `(≈...)` 段。
+- `_fmt_conds(req, rule)`：拼确认串，**同时显示换算后的 USD 阈值与原始输入币种**，让用户一眼核对 LLM 有没有听错。例：`price<=$28.54 (≈MYR120) or cut>=20%`。当输入本就是 USD 或无 max_price 时，省掉 `(≈...)` 段。
 - 需要 `from dealscout.fx import FxError` 与 `from dealscout.intake import GeminiWatchParser, ParseError, resolve_watch`（`SourceError` 已导入，`GameNotFoundError` 是其子类，被同一 except 捕获）。
 
 用法：
 ```
 $ dealscout watch "帮我盯艾尔登法环，降到RM120叫我"
-watching #4: Elden Ring [price<=$28.54 (≈RM120)] country=MY
+watching #4: Elden Ring [price<=$28.54 (≈MYR120)] country=MY
 ```
 
 ### 3.5 配置
