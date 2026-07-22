@@ -28,7 +28,7 @@
 - Test: `tests/test_intake.py`
 
 **Interfaces:**
-- Consumes: `dealscout.models.WatchRule` (imported for later tasks in this file; not used yet in Task 1).
+- Consumes: nothing from earlier tasks (this is the first task). `WatchRequest` is a pure Pydantic model; `build_prompt` is a pure string builder.
 - Produces:
   - `class ParseError(RuntimeError)`
   - `class WatchRequest(BaseModel)` with fields `title: str | None = None`, `max_price: float | None = None`, `currency: str | None = None`, `min_cut: int | None = None`
@@ -86,8 +86,6 @@ Create `dealscout/intake.py`:
 """Natural-language watch setup. Provider-agnostic: parse() is a Protocol; Gemini implements it."""
 
 from pydantic import BaseModel
-
-from dealscout.models import WatchRule  # noqa: F401  (used by resolve_watch in a later task)
 
 
 class ParseError(RuntimeError):
@@ -294,7 +292,7 @@ def resolve_watch(req: WatchRequest, source, fx, country: str = "MY") -> WatchRu
     )
 ```
 
-Then remove the now-unnecessary `# noqa: F401` on the `WatchRule` import (it is used now):
+Add the `WatchRule` import at the top of `dealscout/intake.py`, right after the `from pydantic import BaseModel` line (it is needed now for `resolve_watch`'s return type):
 
 ```python
 from dealscout.models import WatchRule
