@@ -203,3 +203,19 @@ def test_watch_errors_when_no_game(fake_env, monkeypatch):
     result = runner.invoke(cli.app, ["watch", "找个恐怖游戏"])
     assert result.exit_code == 1
     assert "游戏" in _strip_ansi(result.output)
+
+
+def test_watch_exits_when_fx_fails(fake_env, monkeypatch):
+    from dealscout.fx import FxError
+
+    class FailingFx:
+        def __init__(self, *a, **k):
+            pass
+
+        def convert(self, amount, from_ccy, to_ccy):
+            raise FxError("fx rate failed: HTTP 500")
+
+    monkeypatch.setattr(cli, "FxConverter", FailingFx)
+    result = runner.invoke(cli.app, ["watch", "盯艾尔登法环 降到RM120"])
+    assert result.exit_code == 1
+    assert "fx" in _strip_ansi(result.output).lower()

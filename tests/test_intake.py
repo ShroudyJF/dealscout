@@ -131,6 +131,19 @@ def test_resolve_watch_propagates_game_not_found():
         )
 
 
+def test_resolve_watch_propagates_fx_error():
+    from dealscout.fx import FxError
+
+    class FailingFx:
+        def convert(self, amount, from_ccy, to_ccy):
+            raise FxError("fx rate failed: HTTP 500")
+
+    with pytest.raises(FxError):
+        resolve_watch(
+            WatchRequest(title="Elden Ring", max_price=120, currency="MYR"), FakeSource(), FailingFx()
+        )
+
+
 class _FakeResp:
     def __init__(self, text):
         self.text = text

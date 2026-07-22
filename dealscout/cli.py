@@ -57,9 +57,9 @@ def _fmt_conds(req, rule) -> str:
     if rule.max_price is not None:
         src_ccy = (req.currency or "MYR").upper()
         if src_ccy == "USD":
-            conds.append(f"price<=${rule.max_price}")
+            conds.append(f"price<=${rule.max_price:g}")
         else:
-            conds.append(f"price<=${rule.max_price} (≈{src_ccy}{req.max_price:g})")
+            conds.append(f"price<=${rule.max_price:g} (≈{src_ccy}{req.max_price:g})")
     if rule.min_cut is not None:
         conds.append(f"cut>={rule.min_cut}%")
     return " or ".join(conds)
