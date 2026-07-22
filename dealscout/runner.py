@@ -28,12 +28,27 @@ def _display_price(fx, display_currency, deal):
     return (display_currency, amount)
 
 
+def _make_verdict(source, llm, rule):
+    # Best-effort: any failure (no fetch_overview, ITAD error, LLM error) -> None, never blocks notify.
+    if llm is None:
+        return None
+    fetch = getattr(source, "fetch_overview", None)
+    if fetch is None:
+        return None
+    try:
+        overview = fetch(rule)
+        return llm.judge(overview, rule)
+    except Exception:
+        return None
+
+
 def run_once(
     store: Store,
     source: SourceAdapter,
     notifier,
     fx=None,
     display_currency: str | None = None,
+    llm=None,
 ) -> list[RunResult]:
     results: list[RunResult] = []
     for rule in store.list_watches():
@@ -46,7 +61,8 @@ def run_once(
             result.deal = deal
             if deal is not None and store.last_notified_price(rule.id) != deal.best.price:
                 display = _display_price(fx, display_currency, deal)
-                message = format_deal(deal, display)
+                verdict = _make_verdict(source, llm, rule)
+                message = format_deal(deal, display, verdict)
                 notifier.send(message)
                 store.record_notification(rule.id, deal.best.price, message)
                 result.notified = True

@@ -90,3 +90,44 @@ def test_run_once_fx_failure_still_notifies(store):
     )
     assert results[0].notified is True
     assert "≈" not in notifier.sent[0]
+
+
+class FakeLLM:
+    def __init__(self, verdict=None, fail=False):
+        self.verdict = verdict
+        self.fail = fail
+
+    def judge(self, overview, rule):
+        if self.fail:
+            from dealscout.verdict import VerdictError
+
+            raise VerdictError("boom")
+        return self.verdict
+
+
+class FakeSourceWithOverview(FakeSource):
+    def fetch_overview(self, rule):
+        from dealscout.models import PricePoint, PriceOverview
+
+        cur = PricePoint(shop="Steam", price=12.49, regular=24.99, cut=50, currency="USD", url="https://x")
+        return PriceOverview(current=cur, historical_low=None)
+
+
+def test_run_once_adds_verdict(store):
+    from dealscout.verdict import DealVerdict
+
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    llm = FakeLLM(verdict=DealVerdict(rating="good", reason="接近史低"))
+    run_once(store, FakeSourceWithOverview({"g1": [_point()]}), notifier, llm=llm)
+    assert "好价判断" in notifier.sent[0]
+
+
+def test_run_once_verdict_failure_still_notifies(store):
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    results = run_once(
+        store, FakeSourceWithOverview({"g1": [_point()]}), notifier, llm=FakeLLM(fail=True)
+    )
+    assert results[0].notified is True
+    assert "好价判断" not in notifier.sent[0]
