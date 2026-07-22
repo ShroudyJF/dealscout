@@ -47,3 +47,19 @@ def test_format_deal_with_display_adds_convert_line():
     best = PricePoint(shop="Steam", price=12.49, regular=24.99, cut=50, currency="USD", url="https://x")
     text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), display=("MYR", 58.7))
     assert "≈ MYR 58.70" in text
+
+
+def test_format_deal_without_verdict_has_no_verdict_line():
+    best = PricePoint(shop="Steam", price=7.49, regular=24.99, cut=70, currency="USD", url="https://x")
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"))
+    assert "好价判断" not in text
+
+
+def test_format_deal_with_verdict_adds_section():
+    from dealscout.verdict import DealVerdict
+
+    best = PricePoint(shop="Steam", price=7.49, regular=24.99, cut=70, currency="USD", url="https://x")
+    v = DealVerdict(rating="good", reason="接近史低，可入", wait_target=6.24)
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), verdict=v)
+    assert "好价判断" in text
+    assert "接近史低" in text
