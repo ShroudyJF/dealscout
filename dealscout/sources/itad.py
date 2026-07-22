@@ -2,7 +2,7 @@
 
 import httpx
 
-from dealscout.models import PricePoint, WatchRule
+from dealscout.models import PricePoint, PriceOverview, WatchRule
 from dealscout.sources.base import GameNotFoundError, SourceError
 
 BASE_URL = "https://api.isthereanydeal.com"
@@ -44,3 +44,33 @@ class ItadClient:
             )
             for deal in data[0].get("deals", [])
         ]
+
+    def _point_from(self, block: dict, seen_at: str | None = None) -> PricePoint:
+        return PricePoint(
+            shop=block["shop"]["name"],
+            price=block["price"]["amount"],
+            regular=block["regular"]["amount"],
+            cut=block["cut"],
+            currency=block["price"]["currency"],
+            url=block.get("url", ""),
+            seen_at=seen_at,
+        )
+
+    def fetch_overview(self, rule: WatchRule) -> PriceOverview:
+        resp = self._client.post(
+            "/games/overview/v2",
+            params={"key": self._api_key, "country": rule.country},
+            json=[rule.game_id],
+        )
+        if resp.status_code != 200:
+            raise SourceError(f"ITAD overview failed: HTTP {resp.status_code}")
+        data = resp.json()
+        prices = data.get("prices") or []
+        if not prices or "current" not in prices[0]:
+            raise SourceError("ITAD overview: no current price")
+        entry = prices[0]
+        current = self._point_from(entry["current"])
+        low = None
+        if entry.get("lowest"):
+            low = self._point_from(entry["lowest"], seen_at=entry["lowest"].get("timestamp"))
+        return PriceOverview(current=current, historical_low=low)
