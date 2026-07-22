@@ -131,3 +131,15 @@ def test_run_once_verdict_failure_still_notifies(store):
     )
     assert results[0].notified is True
     assert "好价判断" not in notifier.sent[0]
+
+
+def test_run_once_llm_without_overview_source_skips_verdict(store):
+    from dealscout.verdict import DealVerdict
+
+    # plain FakeSource has no fetch_overview -> _make_verdict returns None, notify still fires
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    llm = FakeLLM(verdict=DealVerdict(rating="good", reason="接近史低"))
+    results = run_once(store, FakeSource({"g1": [_point()]}), notifier, llm=llm)
+    assert results[0].notified is True
+    assert "好价判断" not in notifier.sent[0]

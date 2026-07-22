@@ -83,3 +83,13 @@ def test_missing_gemini_key_raises(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(SettingsError, match="GEMINI_API_KEY"):
         load_settings()
+
+
+def test_llm_model_override(monkeypatch):
+    monkeypatch.setattr("dealscout.config.load_dotenv", lambda *a, **kw: None)
+    monkeypatch.setenv("ITAD_API_KEY", "k")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("DEALSCOUT_LLM_MODEL", "gemini-3.0-pro")
+    assert load_settings().llm_model == "gemini-3.0-pro"
