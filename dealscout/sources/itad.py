@@ -33,28 +33,21 @@ class ItadClient:
         data = resp.json()
         if not data:
             return []
-        return [
-            PricePoint(
-                shop=deal["shop"]["name"],
-                price=deal["price"]["amount"],
-                regular=deal["regular"]["amount"],
-                cut=deal["cut"],
-                currency=deal["price"]["currency"],
-                url=deal["url"],
-            )
-            for deal in data[0].get("deals", [])
-        ]
+        return [self._point_from(deal) for deal in data[0].get("deals", [])]
 
     def _point_from(self, block: dict, seen_at: str | None = None) -> PricePoint:
-        return PricePoint(
-            shop=block["shop"]["name"],
-            price=block["price"]["amount"],
-            regular=block["regular"]["amount"],
-            cut=block["cut"],
-            currency=block["price"]["currency"],
-            url=block.get("url", ""),
-            seen_at=seen_at,
-        )
+        try:
+            return PricePoint(
+                shop=block["shop"]["name"],
+                price=block["price"]["amount"],
+                regular=block["regular"]["amount"],
+                cut=block["cut"],
+                currency=block["price"]["currency"],
+                url=block.get("url", ""),
+                seen_at=seen_at,
+            )
+        except (KeyError, TypeError) as exc:
+            raise SourceError(f"ITAD malformed price block: {exc}") from exc
 
     def fetch_overview(self, rule: WatchRule) -> PriceOverview:
         resp = self._client.post(

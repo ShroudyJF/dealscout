@@ -79,6 +79,15 @@ OVERVIEW_OK = {
 }
 
 
+def test_fetch_prices_malformed_deal_raises_source_error():
+    # a deal missing the "price" block should surface as SourceError, not a bare KeyError
+    body = [{"id": "g-123", "deals": [{"shop": {"id": 61, "name": "Steam"}, "cut": 50}]}]
+    itad = ItadClient("k", client=make_client(lambda r: httpx.Response(200, json=body)))
+    rule = WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0)
+    with pytest.raises(SourceError):
+        itad.fetch_prices(rule)
+
+
 def test_fetch_overview_parses_current_and_low():
     def handler(request):
         assert request.url.path == "/games/overview/v2"
