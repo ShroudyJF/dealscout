@@ -99,3 +99,58 @@ def test_gemini_judge_bad_json_raises():
     llm = GeminiVerdictLLM(api_key="k", model="gemini-x", client=fake)
     with pytest.raises(VerdictError):
         llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30))
+
+
+def test_deal_verdict_authenticity_defaults_unknown():
+    v = DealVerdict(rating="good", reason="r")
+    assert v.discount_authenticity == "unknown"
+
+
+def test_deal_verdict_accepts_authenticity():
+    v = DealVerdict(rating="good", reason="r", discount_authenticity="inflated")
+    assert v.discount_authenticity == "inflated"
+
+
+def test_build_prompt_includes_trend_when_given():
+    from dealscout.models import TrendFeatures
+
+    rule = WatchRule(id=1, title="Hades", game_id="g", min_cut=30)
+    trend = TrendFeatures(
+        window_days=90, points=12, low=6.24, median=9.99,
+        times_at_or_below_current=3, regular_recently_raised=True,
+    )
+    prompt = build_prompt(_overview(), rule, trend)
+    assert "9.99" in prompt                     # median shown
+    assert "discount_authenticity" in prompt    # asks the model to set it
+
+
+def test_build_prompt_without_trend_asks_unknown():
+    rule = WatchRule(id=1, title="Hades", game_id="g", min_cut=30)
+    prompt = build_prompt(_overview(), rule)     # no trend
+    assert "unknown" in prompt
+
+
+def test_gemini_judge_passes_trend_and_reads_authenticity():
+    from dealscout.models import TrendFeatures
+    from dealscout.verdict import GeminiVerdictLLM
+
+    fake = _FakeGenaiClient(
+        text='{"rating": "good", "reason": "r", "discount_authenticity": "inflated"}'
+    )
+    llm = GeminiVerdictLLM(api_key="k", model="m", client=fake)
+    trend = TrendFeatures(
+        window_days=90, points=5, low=6.0, median=9.0,
+        times_at_or_below_current=2, regular_recently_raised=True,
+    )
+    v = llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30), trend=trend)
+    assert v.discount_authenticity == "inflated"
+    assert "9" in fake.models.calls[0]["contents"]   # trend median reached the prompt
+
+
+def test_gemini_judge_without_trend_still_works():
+    from dealscout.verdict import GeminiVerdictLLM
+
+    fake = _FakeGenaiClient(text='{"rating": "good", "reason": "r"}')
+    llm = GeminiVerdictLLM(api_key="k", model="m", client=fake)
+    v = llm.judge(_overview(), WatchRule(id=1, title="Hades", game_id="g", min_cut=30))
+    assert v.discount_authenticity == "unknown"

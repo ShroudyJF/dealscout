@@ -67,3 +67,27 @@ class ItadClient:
         if entry.get("lowest"):
             low = self._point_from(entry["lowest"], seen_at=entry["lowest"].get("timestamp"))
         return PriceOverview(current=current, historical_low=low)
+
+    def fetch_history(self, rule: WatchRule) -> list[PricePoint]:
+        resp = self._client.get(
+            "/games/history/v2",
+            params={"key": self._api_key, "id": rule.game_id, "country": rule.country},
+        )
+        if resp.status_code != 200:
+            raise SourceError(f"ITAD history failed: HTTP {resp.status_code}")
+        data = resp.json() or []
+        try:
+            return [
+                self._point_from(
+                    {
+                        "shop": e["shop"],
+                        "price": e["deal"]["price"],
+                        "regular": e["deal"]["regular"],
+                        "cut": e["deal"]["cut"],
+                    },
+                    seen_at=e.get("timestamp"),
+                )
+                for e in data
+            ]
+        except (KeyError, TypeError) as exc:
+            raise SourceError(f"ITAD malformed history entry: {exc}") from exc

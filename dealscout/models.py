@@ -38,3 +38,12 @@ class Deal(BaseModel):
 class PriceOverview(BaseModel):
     current: PricePoint
     historical_low: PricePoint | None = None
+
+
+class TrendFeatures(BaseModel):
+    window_days: int                 # stats window (nominal 90, matches ITAD's ~3-month default)
+    points: int                      # number of price observations in the window
+    low: float                       # lowest observed price
+    median: float                    # median observed price
+    times_at_or_below_current: int   # observations with price <= current price (fake-scarcity signal)
+    regular_recently_raised: bool    # current list price exceeds the window's lowest list price

@@ -63,3 +63,22 @@ def test_format_deal_with_verdict_adds_section():
     text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), verdict=v)
     assert "好价判断" in text
     assert "接近史低" in text
+
+
+def test_format_deal_shows_authenticity_when_known():
+    from dealscout.verdict import DealVerdict
+
+    best = PricePoint(shop="Steam", price=7.49, regular=24.99, cut=70, currency="USD", url="https://x")
+    v = DealVerdict(rating="good", reason="r", discount_authenticity="inflated")
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), verdict=v)
+    assert "折扣真实性" in text
+    assert "原价虚高" in text
+
+
+def test_format_deal_hides_authenticity_when_unknown():
+    from dealscout.verdict import DealVerdict
+
+    best = PricePoint(shop="Steam", price=7.49, regular=24.99, cut=70, currency="USD", url="https://x")
+    v = DealVerdict(rating="good", reason="r")   # discount_authenticity defaults "unknown"
+    text = format_deal(Deal(watch_id=1, title="Hades", best=best, reason="r"), verdict=v)
+    assert "折扣真实性" not in text

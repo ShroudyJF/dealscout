@@ -10,6 +10,12 @@ TELEGRAM_API = "https://api.telegram.org"
 
 _RATING_LABEL = {"buy_now": "现在就买", "good": "不错可入", "wait": "建议再等", "skip": "别买"}
 
+_AUTHENTICITY_LABEL = {
+    "real": "真降，接近历史低位",
+    "inflated": "原价虚高（先涨后降）",
+    "common": "常年这价（非稀缺）",
+}
+
 
 class NotifyError(RuntimeError):
     pass
@@ -43,6 +49,9 @@ def format_deal(deal: Deal, display: tuple[str, float] | None = None, verdict=No
         label = _RATING_LABEL.get(verdict.rating, verdict.rating)
         lines.append(f"📊 好价判断：{label}")
         lines.append(verdict.reason)
+        authenticity = getattr(verdict, "discount_authenticity", "unknown")
+        if authenticity != "unknown":
+            lines.append(f"🔎 折扣真实性：{_AUTHENTICITY_LABEL.get(authenticity, authenticity)}")
         if verdict.wait_target is not None:
             lines.append(f"（目标价 {verdict.wait_target:.2f}）")
     lines.append(f"why: {deal.reason}")

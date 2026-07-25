@@ -4,7 +4,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
-from dealscout.models import PriceOverview, WatchRule
+from dealscout.models import PriceOverview, TrendFeatures, WatchRule
 
 
 class VerdictError(RuntimeError):
@@ -15,15 +15,20 @@ class DealVerdict(BaseModel):
     rating: Literal["buy_now", "good", "wait", "skip"]
     reason: str
     wait_target: float | None = None
+    discount_authenticity: Literal["real", "inflated", "common", "unknown"] = "unknown"
 
 
 class VerdictLLM(Protocol):
-    def judge(self, overview: PriceOverview, rule: WatchRule) -> DealVerdict:
+    def judge(
+        self, overview: PriceOverview, rule: WatchRule, trend: TrendFeatures | None = None
+    ) -> DealVerdict:
         """Return a structured deal verdict. Raises VerdictError on failure."""
         ...
 
 
-def build_prompt(overview: PriceOverview, rule: WatchRule) -> str:
+def build_prompt(
+    overview: PriceOverview, rule: WatchRule, trend: TrendFeatures | None = None
+) -> str:
     cur = overview.current
     low = overview.historical_low
     cond = []
@@ -36,12 +41,24 @@ def build_prompt(overview: PriceOverview, rule: WatchRule) -> str:
         if low is not None
         else "史上最低：未知"
     )
+    if trend is not None:
+        trend_line = (
+            f"价格历史（近 {trend.window_days} 天，{trend.points} 个观测点）："
+            f"最低 {trend.low:.2f}，中位 {trend.median:.2f}，"
+            f"历史上 ≤当前价 出现 {trend.times_at_or_below_current} 次；"
+            f"原价{'被抬高过（先涨后降嫌疑）' if trend.regular_recently_raised else '未被抬高'}。\n"
+            "据此把 discount_authenticity 设为 real(真降,接近历史低位)/"
+            "inflated(原价虚高,先涨后降)/common(常年这价,非稀缺) 之一，并在 reason 点明。"
+        )
+    else:
+        trend_line = "（无价格历史数据，discount_authenticity 请设为 unknown。）"
     return (
         "你是精明的游戏比价顾问。根据下面的数据，判断现在这个价到底值不值得买、"
         "还是再等等，给出简短的中文理由。\n"
         f"游戏：{rule.title}\n"
         f"现价：{cur.currency} {cur.price:.2f}（原价 {cur.regular:.2f}，-{cur.cut}%，{cur.shop}）\n"
         f"{low_line}\n"
+        f"{trend_line}\n"
         f"用户条件：{('；'.join(cond)) or '无'}\n"
         "rating 取值：buy_now(现在就买)、good(不错可入)、wait(建议再等)、skip(别买)。"
         "若建议再等，wait_target 给一个值得设提醒的目标价（否则留空）。"
@@ -74,8 +91,10 @@ class GeminiVerdictLLM:
                 http_options=genai.types.HttpOptions(timeout=30_000),
             )
 
-    def judge(self, overview: PriceOverview, rule: WatchRule) -> DealVerdict:
-        prompt = build_prompt(overview, rule)
+    def judge(
+        self, overview: PriceOverview, rule: WatchRule, trend: TrendFeatures | None = None
+    ) -> DealVerdict:
+        prompt = build_prompt(overview, rule, trend)
         try:
             from google.genai import types
 
