@@ -115,3 +115,53 @@ def test_fetch_overview_http_error_raises():
     itad = ItadClient("k", client=make_client(lambda r: httpx.Response(500, text="boom")))
     with pytest.raises(SourceError):
         itad.fetch_overview(WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0))
+
+
+HISTORY_OK = [
+    {
+        "timestamp": "2025-05-01T10:00:00+00:00",
+        "shop": {"id": 61, "name": "Steam"},
+        "deal": {"price": {"amount": 20.0, "currency": "USD"}, "regular": {"amount": 40.0}, "cut": 50},
+    },
+    {
+        "timestamp": "2025-06-01T10:00:00+00:00",
+        "shop": {"id": 61, "name": "Steam"},
+        "deal": {"price": {"amount": 10.0, "currency": "USD"}, "regular": {"amount": 40.0}, "cut": 75},
+    },
+]
+
+
+def test_fetch_history_parses_series():
+    def handler(request):
+        assert request.url.path == "/games/history/v2"
+        assert request.url.params["id"] == "g-123"
+        assert request.url.params["country"] == "MY"
+        return httpx.Response(200, json=HISTORY_OK)
+
+    itad = ItadClient("k", client=make_client(handler))
+    rule = WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0)
+    points = itad.fetch_history(rule)
+    assert len(points) == 2
+    assert points[0].price == 20.0
+    assert points[1].price == 10.0
+    assert points[1].regular == 40.0
+    assert points[1].currency == "USD"
+    assert points[1].seen_at == "2025-06-01T10:00:00+00:00"
+
+
+def test_fetch_history_empty_returns_empty_list():
+    itad = ItadClient("k", client=make_client(lambda r: httpx.Response(200, json=[])))
+    assert itad.fetch_history(WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0)) == []
+
+
+def test_fetch_history_http_error_raises():
+    itad = ItadClient("k", client=make_client(lambda r: httpx.Response(500, text="boom")))
+    with pytest.raises(SourceError):
+        itad.fetch_history(WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0))
+
+
+def test_fetch_history_malformed_entry_raises():
+    body = [{"timestamp": "2025-06-01T10:00:00+00:00", "shop": {"name": "Steam"}}]  # no "deal"
+    itad = ItadClient("k", client=make_client(lambda r: httpx.Response(200, json=body)))
+    with pytest.raises(SourceError):
+        itad.fetch_history(WatchRule(id=1, title="Hades", game_id="g-123", max_price=15.0))
