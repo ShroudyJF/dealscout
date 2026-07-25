@@ -48,7 +48,7 @@ class FakeVerdictLLM:
     def __init__(self, *args, **kwargs):
         pass
 
-    def judge(self, overview, rule):
+    def judge(self, overview, rule, trend=None):
         from dealscout.verdict import DealVerdict
 
         return DealVerdict(rating="good", reason="ok")

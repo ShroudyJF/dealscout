@@ -96,8 +96,10 @@ class FakeLLM:
     def __init__(self, verdict=None, fail=False):
         self.verdict = verdict
         self.fail = fail
+        self.last_trend = "unset"
 
-    def judge(self, overview, rule):
+    def judge(self, overview, rule, trend=None):
+        self.last_trend = trend
         if self.fail:
             from dealscout.verdict import VerdictError
 
@@ -143,3 +145,51 @@ def test_run_once_llm_without_overview_source_skips_verdict(store):
     results = run_once(store, FakeSource({"g1": [_point()]}), notifier, llm=llm)
     assert results[0].notified is True
     assert "好价判断" not in notifier.sent[0]
+
+
+class FakeSourceWithHistory(FakeSourceWithOverview):
+    def fetch_history(self, rule):
+        from dealscout.models import PricePoint
+
+        return [
+            PricePoint(shop="Steam", price=20.0, regular=40.0, cut=50, currency="USD", url="", seen_at="2025-05-01"),
+            PricePoint(shop="Steam", price=12.49, regular=40.0, cut=69, currency="USD", url="", seen_at="2025-06-01"),
+        ]
+
+
+class FakeSourceHistoryFails(FakeSourceWithOverview):
+    def fetch_history(self, rule):
+        raise SourceError("history boom")
+
+
+def test_run_once_passes_trend_to_llm(store):
+    from dealscout.verdict import DealVerdict
+
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    llm = FakeLLM(verdict=DealVerdict(rating="good", reason="r", discount_authenticity="inflated"))
+    run_once(store, FakeSourceWithHistory({"g1": [_point()]}), notifier, llm=llm)
+    assert llm.last_trend is not None
+    assert llm.last_trend.points == 2
+
+
+def test_run_once_no_fetch_history_gives_trend_none(store):
+    from dealscout.verdict import DealVerdict
+
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    llm = FakeLLM(verdict=DealVerdict(rating="good", reason="r"))
+    # FakeSourceWithOverview has fetch_overview but no fetch_history
+    run_once(store, FakeSourceWithOverview({"g1": [_point()]}), notifier, llm=llm)
+    assert llm.last_trend is None
+
+
+def test_run_once_history_error_still_notifies(store):
+    from dealscout.verdict import DealVerdict
+
+    store.add_watch(WatchRule(title="Hades", game_id="g1", max_price=15.0))
+    notifier = FakeNotifier()
+    llm = FakeLLM(verdict=DealVerdict(rating="good", reason="r"))
+    results = run_once(store, FakeSourceHistoryFails({"g1": [_point()]}), notifier, llm=llm)
+    assert results[0].notified is True
+    assert llm.last_trend is None

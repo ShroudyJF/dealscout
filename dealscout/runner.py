@@ -7,6 +7,7 @@ from dealscout.models import Deal
 from dealscout.notify import format_deal
 from dealscout.sources.base import SourceAdapter
 from dealscout.store import Store
+from dealscout.trend import compute_trend
 
 
 class RunResult(BaseModel):
@@ -28,6 +29,17 @@ def _display_price(fx, display_currency, deal):
     return (display_currency, amount)
 
 
+def _make_trend(source, rule, current):
+    # Best-effort: source without fetch_history, ITAD error, or <2 points -> None.
+    fetch = getattr(source, "fetch_history", None)
+    if fetch is None:
+        return None
+    try:
+        return compute_trend(fetch(rule), current)
+    except Exception:
+        return None
+
+
 def _make_verdict(source, llm, rule):
     # Best-effort: any failure (no fetch_overview, ITAD error, LLM error) -> None, never blocks notify.
     if llm is None:
@@ -37,7 +49,11 @@ def _make_verdict(source, llm, rule):
         return None
     try:
         overview = fetch(rule)
-        return llm.judge(overview, rule)
+    except Exception:
+        return None
+    trend = _make_trend(source, rule, overview.current)
+    try:
+        return llm.judge(overview, rule, trend=trend)
     except Exception:
         return None
 
